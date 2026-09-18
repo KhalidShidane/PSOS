@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchFinanceAnalytics } from "../services/analyticsService.js";
 
 export const useFinanceAnalytics = (period) => {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,9 +25,10 @@ export const useFinanceAnalytics = (period) => {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, refreshToken]);
 
-  return { data, isLoading, error };
+  const refetch = useCallback(() => setRefreshToken((value) => value + 1), []);
+  return { data, isLoading, error, refetch };
 };
 
 export default useFinanceAnalytics;

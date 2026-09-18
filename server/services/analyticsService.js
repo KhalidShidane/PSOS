@@ -17,6 +17,21 @@ const timeToMinutes = (time) => {
 
 const dayNameOf = (date) => DAYS_OF_WEEK[(date.getDay() + 6) % 7]; // getDay(): 0=Sun -> DAYS_OF_WEEK starts Monday
 
+// Always return seven points so trend charts show a complete week, including quiet days.
+const completeSevenDayTrend = (rows, valueKey) => {
+  const values = new Map(rows.map((row) => [row.date, row[valueKey]]));
+  const result = [];
+  const cursor = new Date();
+  cursor.setUTCHours(0, 0, 0, 0);
+  cursor.setUTCDate(cursor.getUTCDate() - 6);
+  for (let index = 0; index < 7; index += 1) {
+    const date = cursor.toISOString().slice(0, 10);
+    result.push({ date, [valueKey]: values.get(date) || 0 });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return result;
+};
+
 const getActivityStatus = (schedule, now) => {
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const start = timeToMinutes(schedule.startTime);
@@ -145,7 +160,7 @@ const getStudyAnalytics = async (userId, period) => {
       courseName: c._id ? courseNameById.get(String(c._id)) || "Unknown course" : "No course",
       minutes: c.minutes,
     })),
-    trend: trendRaw.map((t) => ({ date: t._id, minutes: t.minutes })),
+    trend: completeSevenDayTrend(trendRaw.map((t) => ({ date: t._id, minutes: t.minutes })), "minutes"),
   };
 };
 
@@ -232,14 +247,14 @@ const getFinanceAnalytics = async (userId, period) => {
   const trendRange = last7DaysRange();
   const uid = new mongoose.Types.ObjectId(userId);
 
-  const [totalsByType, byCategory, trendRaw] = await Promise.all([
+  const [totalsByType, byCategory, trendRaw, bankChargeTrendRaw] = await Promise.all([
     Transaction.aggregate([
       { $match: { user: uid, date: { $gte: start, $lte: end } } },
       { $group: { _id: "$type", amount: { $sum: "$amount" }, count: { $sum: 1 } } },
     ]),
     Transaction.aggregate([
       { $match: { user: uid, type: "expense", date: { $gte: start, $lte: end } } },
-      { $group: { _id: "$category", amount: { $sum: "$amount" } } },
+      { $group: { _id: "$category", amount: { $sum: "$amount" }, count: { $sum: 1 } } },
       { $sort: { amount: -1 } },
     ]),
     Transaction.aggregate([
@@ -258,11 +273,17 @@ const getFinanceAnalytics = async (userId, period) => {
       },
       { $sort: { _id: 1 } },
     ]),
+    Transaction.aggregate([
+      { $match: { user: uid, type: "expense", category: "Bank charges", date: { $gte: trendRange.start, $lte: trendRange.end } } },
+      { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, amount: { $sum: "$amount" } } },
+      { $sort: { _id: 1 } },
+    ]),
   ]);
 
   const totalIncome = totalsByType.find((t) => t._id === "income")?.amount || 0;
   const totalExpenses = totalsByType.find((t) => t._id === "expense")?.amount || 0;
   const transactionCount = totalsByType.reduce((sum, t) => sum + t.count, 0);
+  const bankChargeRow = byCategory.find((item) => item._id === "Bank charges");
 
   return {
     period,
@@ -271,8 +292,11 @@ const getFinanceAnalytics = async (userId, period) => {
     totalExpenses,
     balance: totalIncome - totalExpenses,
     transactionCount,
+    bankCharges: bankChargeRow?.amount || 0,
+    bankChargeCount: bankChargeRow?.count || 0,
     byCategory: byCategory.map((c) => ({ category: c._id || "Other", amount: c.amount })),
-    trend: trendRaw.map((t) => ({ date: t._id, amount: t.amount })),
+    trend: completeSevenDayTrend(trendRaw.map((t) => ({ date: t._id, amount: t.amount })), "amount"),
+    bankChargeTrend: completeSevenDayTrend(bankChargeTrendRaw.map((t) => ({ date: t._id, amount: t.amount })), "amount"),
   };
 };
 

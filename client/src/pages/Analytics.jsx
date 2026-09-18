@@ -9,6 +9,7 @@ import StudyAnalyticsSection from "../components/analytics/StudyAnalyticsSection
 import CompletionStatsGrid from "../components/analytics/CompletionStatsGrid.jsx";
 import CodingAnalyticsSection from "../components/analytics/CodingAnalyticsSection.jsx";
 import CourseProgressTable from "../components/analytics/CourseProgressTable.jsx";
+import ChartCard from "../components/analytics/ChartCard.jsx";
 
 const PERIOD_OPTIONS = [
   { value: "daily", label: "Daily" },
@@ -35,27 +36,28 @@ const Analytics = () => {
         <Tabs options={PERIOD_OPTIONS} value={period} onChange={setPeriod} />
       </div>
 
-      <section>
-        <h2 className="mb-3 text-base font-semibold text-gray-800">Study</h2>
+      <section className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 to-white p-5">
+        <div className="mb-4"><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Focus report</p><h2 className="mt-1 text-lg font-semibold text-slate-800">Study</h2></div>
         <StudyAnalyticsSection data={study.data} isLoading={study.isLoading} />
       </section>
 
-      <section>
-        <h2 className="mb-3 text-base font-semibold text-gray-800">Tasks</h2>
+      <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-white p-5">
+        <div className="mb-4"><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-600">Productivity report</p><h2 className="mt-1 text-lg font-semibold text-slate-800">Tasks</h2></div>
         <CompletionStatsGrid data={tasks.data} isLoading={tasks.isLoading} />
       </section>
 
-      <section>
-        <h2 className="mb-3 text-base font-semibold text-gray-800">Assignments</h2>
+      <section className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/70 to-white p-5">
+        <div className="mb-4"><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-600">Deadline report</p><h2 className="mt-1 text-lg font-semibold text-slate-800">Assignments</h2></div>
         <CompletionStatsGrid data={assignments.data} isLoading={assignments.isLoading} />
       </section>
 
       <section>
-        <h2 className="mb-3 text-base font-semibold text-gray-800">Course progress</h2>
-        <CourseProgressTable courses={courses.courses} isLoading={courses.isLoading} />
+        <ChartCard title="Course progress" subtitle="Assignment completion, study time, and weekly classes">
+          <CourseProgressTable courses={courses.courses} isLoading={courses.isLoading} />
+        </ChartCard>
       </section>
 
-      <section>
+      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-1">
         <CodingAnalyticsSection data={coding.data} isLoading={coding.isLoading} />
       </section>
     </div>

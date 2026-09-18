@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { CreditCard, Plus, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { useTransactions } from "../hooks/useTransactions.js";
 import { useFinanceAnalytics } from "../hooks/useFinanceAnalytics.js";
 import { formatCurrency } from "../utils/financeHelpers.js";
@@ -11,9 +11,10 @@ import EmptyState from "../components/common/EmptyState.jsx";
 import SkeletonRow from "../components/common/SkeletonRow.jsx";
 import SkeletonStat from "../components/common/SkeletonStat.jsx";
 import TrendChart from "../components/analytics/TrendChart.jsx";
+import ChartCard from "../components/analytics/ChartCard.jsx";
+import CategoryBars from "../components/analytics/CategoryBars.jsx";
 import TransactionForm from "../components/finance/TransactionForm.jsx";
 import TransactionList from "../components/finance/TransactionList.jsx";
-import FinanceByCategory from "../components/finance/FinanceByCategory.jsx";
 
 const PERIOD_OPTIONS = [
   { value: "daily", label: "Daily" },
@@ -36,21 +37,33 @@ const Finance = () => {
   const { transactions, isLoading, error, addTransaction, editTransaction, removeTransaction } =
     useTransactions();
   const [period, setPeriod] = useState("weekly");
-  const { data: analytics, isLoading: analyticsLoading } = useFinanceAnalytics(period);
+  const { data: analytics, isLoading: analyticsLoading, refetch: refetchAnalytics } = useFinanceAnalytics(period);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
+  const [newTransactionDefaults, setNewTransactionDefaults] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
 
   const openAddModal = () => {
     setEditingTransaction(null);
+    setNewTransactionDefaults(null);
+    setFormError("");
+    setIsModalOpen(true);
+  };
+
+  const openBankChargeModal = () => {
+    setEditingTransaction(null);
+    setNewTransactionDefaults({
+      type: "expense", amount: "", category: "Bank charges", description: "", date: new Date(),
+    });
     setFormError("");
     setIsModalOpen(true);
   };
 
   const openEditModal = (transaction) => {
     setEditingTransaction(transaction);
+    setNewTransactionDefaults(null);
     setFormError("");
     setIsModalOpen(true);
   };
@@ -64,6 +77,7 @@ const Finance = () => {
       } else {
         await addTransaction(data);
       }
+      refetchAnalytics();
       setIsModalOpen(false);
     } catch (err) {
       setFormError(err.response?.data?.message || "Failed to save transaction.");
@@ -76,6 +90,7 @@ const Finance = () => {
     if (!window.confirm(`Delete this ${transaction.type} of ${formatCurrency(transaction.amount)}?`))
       return;
     await removeTransaction(transaction._id);
+    refetchAnalytics();
   };
 
   return (
@@ -108,7 +123,7 @@ const Finance = () => {
         </div>
       ) : (
         analytics && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard icon={TrendingUp} label="Income" value={formatCurrency(analytics.totalIncome)} />
             <StatCard
               icon={TrendingDown}
@@ -117,22 +132,21 @@ const Finance = () => {
               value={formatCurrency(analytics.totalExpenses)}
             />
             <StatCard icon={Wallet} label="Balance" value={formatCurrency(analytics.balance)} />
+            <StatCard icon={CreditCard} tone="gray" label="Bank charges" value={formatCurrency(analytics.bankCharges)} hint={`${analytics.bankChargeCount} recorded`} />
           </div>
         )
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">Spending - last 7 days</h2>
+        <ChartCard title="Spending overview" subtitle="Your expenses across the last 7 days">
           {analyticsLoading ? (
-            <div className="h-24 animate-pulse rounded-md bg-gray-100" />
+            <div className="h-56 animate-pulse rounded-xl bg-slate-100" />
           ) : (
-            <TrendChart data={analytics?.trend} valueKey="amount" />
+            <TrendChart data={analytics?.trend} valueKey="amount" color="violet" valueFormatter={formatCurrency} />
           )}
-        </div>
+        </ChartCard>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">By category</h2>
+        <ChartCard title="Expense categories" subtitle="Where your money is going">
           {analyticsLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -140,9 +154,23 @@ const Finance = () => {
               ))}
             </div>
           ) : (
-            <FinanceByCategory byCategory={analytics?.byCategory} />
+            <CategoryBars items={analytics?.byCategory} valueFormatter={formatCurrency} />
           )}
-        </div>
+        </ChartCard>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-100 bg-gradient-to-r from-amber-50 to-white p-4 shadow-sm">
+        <div className="flex items-center gap-3"><span className="rounded-xl bg-amber-100 p-2.5 text-amber-700"><CreditCard className="h-5 w-5" /></span><div><h2 className="text-sm font-semibold text-slate-800">Other charges</h2><p className="text-xs text-slate-500">Record bank fees, transfer costs, and service charges.</p></div></div>
+        <button type="button" onClick={openBankChargeModal} className="rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">Add bank charge</button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ChartCard title="Bank charges tracker" subtitle="Fees and transfer costs over the last 7 days" action={<span className="rounded-lg bg-amber-100 p-2 text-amber-700"><CreditCard className="h-4 w-4" /></span>}>
+          {analyticsLoading ? <div className="h-56 animate-pulse rounded-xl bg-slate-100" /> : <TrendChart data={analytics?.bankChargeTrend} valueKey="amount" color="emerald" valueFormatter={formatCurrency} />}
+        </ChartCard>
+        <ChartCard title="Money tracker" subtitle="A clear view of your current financial activity">
+          <div className="grid h-56 grid-cols-2 content-center gap-3"><div className="rounded-xl bg-emerald-50 p-4"><p className="text-xs font-medium text-emerald-700">Money in</p><p className="mt-1 text-xl font-bold text-emerald-900">{formatCurrency(analytics?.totalIncome)}</p></div><div className="rounded-xl bg-rose-50 p-4"><p className="text-xs font-medium text-rose-700">Money out</p><p className="mt-1 text-xl font-bold text-rose-900">{formatCurrency(analytics?.totalExpenses)}</p></div><div className="col-span-2 rounded-xl bg-slate-900 p-4 text-white"><p className="text-xs font-medium text-slate-300">Available balance</p><p className="mt-1 text-2xl font-bold">{formatCurrency(analytics?.balance)}</p></div></div>
+        </ChartCard>
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
@@ -168,14 +196,14 @@ const Finance = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingTransaction ? "Edit transaction" : "Add transaction"}
+        title={editingTransaction ? "Edit transaction" : newTransactionDefaults ? "Add bank charge" : "Add transaction"}
       >
         {formError && <p className="mb-3 text-sm text-red-600">{formError}</p>}
         <TransactionForm
-          defaultValues={buildDefaultValues(editingTransaction)}
+          defaultValues={buildDefaultValues(editingTransaction || newTransactionDefaults)}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
-          submitLabel={editingTransaction ? "Save changes" : "Add transaction"}
+          submitLabel={editingTransaction ? "Save changes" : newTransactionDefaults ? "Add bank charge" : "Add transaction"}
         />
       </Modal>
     </div>

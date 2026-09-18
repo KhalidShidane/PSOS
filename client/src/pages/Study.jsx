@@ -6,11 +6,13 @@ import { useStudyAnalytics } from "../hooks/useStudyAnalytics.js";
 import { toLocalInputValue } from "../utils/studyHelpers.js";
 import Modal from "../components/common/Modal.jsx";
 import StudyTimer from "../components/study/StudyTimer.jsx";
+import DailyStudyLog from "../components/study/DailyStudyLog.jsx";
 import StudyStats from "../components/study/StudyStats.jsx";
 import StudyByCourse from "../components/study/StudyByCourse.jsx";
 import StudySessionList from "../components/study/StudySessionList.jsx";
 import StudySessionForm from "../components/study/StudySessionForm.jsx";
 import TrendChart from "../components/analytics/TrendChart.jsx";
+import ChartCard from "../components/analytics/ChartCard.jsx";
 import SkeletonRow from "../components/common/SkeletonRow.jsx";
 
 const buildDefaultValues = (session) =>
@@ -96,16 +98,14 @@ const Study = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">
           <StudyTimer courses={courses} onComplete={addSession} />
+          <DailyStudyLog courses={courses} onSave={addSession} />
         </div>
 
         <div className="space-y-6 lg:col-span-2">
           <StudyStats sessions={sessions} />
 
           {trendData && (
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-              <h2 className="mb-3 text-sm font-semibold text-gray-700">Last 7 days</h2>
-              <TrendChart data={trendData.trend} />
-            </div>
+            <ChartCard title="Study rhythm" subtitle="Focused minutes over the last 7 days"><TrendChart data={trendData.trend} color="blue" valueFormatter={(value) => `${value} min`} /></ChartCard>
           )}
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
